@@ -56,7 +56,10 @@ exports.handler = async (event) => {
   if (res.status === 429) return send(429, { error: "The free AI quota is used up for now. Try again later." });
   if (res.status === 404) return send(502, { error: "The AI model name is not available. Set GEMINI_MODEL in Netlify to a current model." });
   if (res.status === 400 || res.status === 403) return send(502, { error: "The AI service rejected the request. Check the API key and model name." });
-  if (!res.ok) return send(502, { error: "The AI service had a problem. Try again." });
+  if (!res.ok) {
+  const detail = await res.text().catch(() => "");
+  return send(502, { error: `AI service error ${res.status}: ${detail.slice(0, 200)}` });
+  }
 
   const data = await res.json().catch(() => ({}));
   const out = (data.candidates?.[0]?.content?.parts || []).map((p) => p.text || "").join("").trim();
