@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Second Opinion: AI code debugger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f2f5f4;--card:#fff;--tx:#10201e;--mut:#51635f;--bd:#d5dfdc;--ac:#0b6e63;--on:#fff;--code:#0c1a18;--ct:#d9f3ee;--bad:#b3261e;--ok:#14732f;--warn:#9a6700;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1413;--card:#122120;--tx:#e6f3f0;--mut:#93aaa5;--bd:#23403c;--ac:#4fd1be;--on:#06201c;--code:#071110;--ct:#d9f3ee;--bad:#ff8a80;--ok:#6fdc8c;--warn:#f2c14e}}
+:root[data-theme="dark"]{--bg:#0b1413;--card:#122120;--tx:#e6f3f0;--mut:#93aaa5;--bd:#23403c;--ac:#4fd1be;--on:#06201c;--code:#071110;--ct:#d9f3ee;--bad:#ff8a80;--ok:#6fdc8c;--warn:#f2c14e}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.55 "Bricolage Grotesque",system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.wrap{max-width:1080px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:clamp(30px,6vw,52px);line-height:1.02;margin:8px 0 10px;font-weight:800;letter-spacing:-.02em;max-width:16ch}
+.lead{color:var(--mut);max-width:60ch;margin:0 0 22px}
+.seg{display:flex;gap:4px;padding:4px;background:var(--card);border:1px solid var(--bd);border-radius:12px;overflow-x:auto;max-width:100%;width:max-content}
+.seg button{font:inherit;font-weight:600;border:0;background:none;color:var(--mut);padding:9px 14px;border-radius:9px;cursor:pointer;white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--ac);color:var(--on)}
+.grid{display:grid;grid-template-columns:1fr;gap:16px;margin-top:16px}
+@media(min-width:880px){.grid{grid-template-columns:1fr 1fr;align-items:start}}
+.panel{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px;min-width:0}
+label{display:block;font-weight:600;font-size:14px;margin:0 0 6px}
+textarea,select{width:100%;font:14px/1.5 "JetBrains Mono",ui-monospace,Menlo,monospace;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:10px}
+textarea{resize:vertical;min-height:150px}
+#ctx{min-height:84px}
+select{font-family:inherit;font-size:15px}
+.row{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-top:12px}
+.row>div{flex:1 1 150px}
+.btn{font:inherit;font-weight:800;border:0;background:var(--ac);color:var(--on);padding:12px 20px;border-radius:10px;cursor:pointer}
+.btn.ghost{background:none;color:var(--ac);border:1px solid var(--bd);font-weight:600;padding:11px 14px}
+.btn:disabled{opacity:.55;cursor:wait}
+:focus-visible{outline:3px solid var(--ac);outline-offset:2px}
+#out{min-height:120px;overflow-wrap:anywhere}
+#out h3{margin:18px 0 6px;font-size:18px}
+#out h3:first-child{margin-top:0}
+#out p{margin:6px 0}
+#out ul{margin:6px 0;padding-left:20px}
+.cw{margin:10px 0;border-radius:10px;overflow:hidden;background:var(--code)}
+.ch{display:flex;justify-content:space-between;align-items:center;color:#8fb3ac;font:12px "JetBrains Mono",monospace;padding:6px 10px;border-bottom:1px solid #1d3a35}
+.ch button{font:inherit;background:none;border:1px solid #2c5750;color:var(--ct);border-radius:6px;padding:2px 8px;cursor:pointer}
+pre{margin:0;padding:12px;overflow-x:auto;color:var(--ct);font:13px/1.5 "JetBrains Mono",monospace}
+code.i{font:13px "JetBrains Mono",monospace;background:var(--bg);padding:1px 5px;border-radius:5px}
+.empty{color:var(--mut)}
+.err{color:var(--bad);font-weight:600}
+.meter{height:12px;background:var(--bg);border:1px solid var(--bd);border-radius:99px;overflow:hidden;margin:8px 0}
+.meter i{display:block;height:100%;border-radius:99px;transition:width .6s}
+.score{font-size:44px;font-weight:800;line-height:1}
+.tag{display:inline-block;font-weight:600;font-size:13px;padding:2px 9px;border-radius:99px;border:1px solid var(--bd)}
+.note{font-size:13px;color:var(--mut);margin-top:10px}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Paste the bug. Get the fix, and the proof.</h1>
+<p class="lead">Second Opinion debugs code in any language, explains it, reviews it, and grades fixes from other AI tools before you trust them.</p>
+
+<div class="seg" role="group" aria-label="Mode" id="seg"></div>
+
+<div class="grid">
+ <section class="panel" aria-label="Input">
+  <label for="code" id="codeL">Your code</label>
+  <textarea id="code" spellcheck="false" placeholder="Paste code here"></textarea>
+  <label for="ctx" id="ctxL" style="margin-top:12px">Error message</label>
+  <textarea id="ctx" spellcheck="false"></textarea>
+  <div class="row">
+   <div><label for="lang">Language</label>
+    <select id="lang"><option>Auto-detect</option><option>JavaScript</option><option>TypeScript</option><option>React / React Native</option><option>Firebase</option><option>Python</option><option>Java</option><option>Kotlin</option><option>Swift</option><option>C / C++</option><option>C#</option><option>PHP</option><option>Go</option><option>Rust</option><option>SQL</option><option>HTML / CSS</option><option>Bash</option></select></div>
+   <button class="btn" id="go">Debug it</button>
+   <button class="btn ghost" id="ex" type="button">Try an example</button>
+  </div>
+ </section>
+ <section class="panel" aria-live="polite" aria-label="Result">
+  <div id="out"><p class="empty">Your answer appears here.</p></div>
+ </section>
+</div>
+<p class="note" id="note">Answers come from an AI model and can be wrong, so test every fix. Your code is sent to an AI provider: never paste passwords, keys or private client code.</p>
+</div>
+
+<script>
+const MODES={
+ debug:{tab:"Debug",btn:"Debug it",codeL:"Your code",ctxL:"Error message or what goes wrong",ph:"Paste the error or describe the wrong behavior",
+  ex:{code:"function Cart({items}){\n  const total = items.reduce((s,i)=>s+i.price,0);\n  return items.map(i=><li key={i.id}>{i.name}</li>);\n}\n// items comes from a Firebase fetch",ctx:"TypeError: Cannot read properties of undefined (reading 'reduce')"} },
+ explain:{tab:"Explain",btn:"Explain it",codeL:"Code to explain",ctxL:"Anything specific you are stuck on (optional)",ph:"Optional question",
+  ex:{code:"const debounce=(fn,ms)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)}}",ctx:"Why does it need clearTimeout?"} },
+ review:{tab:"Review",btn:"Review it",codeL:"Code to review",ctxL:"What it should do (optional)",ph:"Optional goal",
+  ex:{code:"app.get('/user', (req,res)=>{\n  db.query('SELECT * FROM users WHERE id='+req.query.id,(e,r)=>res.json(r))\n})",ctx:"Return one user by id"} },
+ grade:{tab:"Grade an AI fix",btn:"Grade the fix",codeL:"The fix another AI gave you",ctxL:"The original problem (code and error)",ph:"Paste the original code and error",
+  ex:{code:"Wrap it in try/catch and it should work. You can also use the built-in fixCart() helper.",ctx:"React component crashes: Cannot read properties of undefined (reading 'reduce')"} }
+};
+const $=s=>document.querySelector(s);
+let mode="debug",busy=false;
+
+const seg=$("#seg");
+Object.keys(MODES).forEach(k=>{const b=document.createElement("button");b.textContent=MODES[k].tab;b.dataset.k=k;b.onclick=()=>setMode(k);seg.append(b)});
+function setMode(k){mode=k;const m=MODES[k];
+ [...seg.children].forEach(b=>b.setAttribute("aria-pressed",b.dataset.k===k));
+ $("#go").textContent=m.btn;$("#codeL").textContent=m.codeL;$("#ctxL").textContent=m.ctxL;$("#ctx").placeholder=m.ph;
+ $("#out").replaceChildren(el("p","empty","Your answer appears here."))}
+setMode("debug");
+
+function el(t,c,x){const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
+function inline(parent,text){text.split(/(\*\*[^*]+\*\*|`[^`]+`)/).forEach(s=>{
+ if(!s)return;
+ if(s.startsWith("**")&&s.endsWith("**")&&s.length>4){const b=el("strong",0,s.slice(2,-2));parent.append(b)}
+ else if(s.startsWith("`")&&s.endsWith("`")&&s.length>2){parent.append(el("code","i",s.slice(1,-1)))}
+ else parent.append(document.createTextNode(s))})}
+function render(t){const o=$("#out");o.replaceChildren();let ul=null;
+ t.split("```").forEach((p,i)=>{
+  if(i%2){const nl=p.indexOf("\n");const lang=nl<0?"":p.slice(0,nl).trim();const code=nl<0?"":p.slice(nl+1).replace(/\n$/,"");
+   const w=el("div","cw"),h=el("div","ch"),cb=el("button",0,"Copy");cb.type="button";
+   cb.onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(code).then(()=>{cb.textContent="Copied";setTimeout(()=>cb.textContent="Copy",1500)}).catch(()=>{})};
+   h.append(el("span",0,lang||"code"),cb);const pre=el("pre",0,code);w.append(h,pre);o.append(w);ul=null}
+  else p.split("\n").forEach(l=>{
+   if(!l.trim()){ul=null;return}
+   const m=l.match(/^#{1,4}\s+(.*)/);
+   if(m){const h=el("h3");inline(h,m[1]);o.append(h);ul=null;return}
+   const li=l.match(/^\s*(?:[-*]|\d+\.)\s+(.*)/);
+   if(li){if(!ul){ul=el("ul");o.append(ul)}const x=el("li");inline(x,li[1]);ul.append(x);return}
+   ul=null;const q=el("p");inline(q,l);o.append(q)})})}
+function fail(msg){const o=$("#out");o.replaceChildren(el("p","err",msg))}
+
+function renderGrade(g){const o=$("#out");o.replaceChildren();
+ const s=Math.max(0,Math.min(100,Math.round(g.score||0)));
+ const col=s>=75?"var(--ok)":s>=45?"var(--warn)":"var(--bad)";
+ const top=el("div");const sc=el("div","score",s+"/100");sc.style.color=col;top.append(sc);
+ const m=el("div","meter"),f=el("i");f.style.width="0";f.style.background=col;m.append(f);top.append(m);
+ o.append(top);setTimeout(()=>f.style.width=s+"%",30);
+ const v=el("p");const vs=el("strong",0,g.verdict||"");v.append(vs);o.append(v);
+ [["Checks","checks"],["Strengths","strengths"],["Risks","risks"]].forEach(([n,k])=>{
+  const a=g[k];if(!Array.isArray(a)||!a.length)return;o.append(el("h3",0,n));const u=el("ul");a.forEach(x=>{const li=el("li");inline(li,String(x));u.append(li)});o.append(u)});
+ if(g.next){o.append(el("h3",0,"Do this next"));const p=el("p");inline(p,g.next);o.append(p)}}
+
+async function run(){
+ if(busy)return;
+ const code=$("#code").value.trim().slice(0,12000),ctx=$("#ctx").value.trim().slice(0,6000),lang=$("#lang").value;
+ if(!code){fail("Paste some code first.");return}
+ busy=true;$("#go").disabled=true;$("#out").replaceChildren(el("p","empty","Thinking..."));
+ try{
+  const res=await fetch("/.netlify/functions/debug",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mode,lang,code,ctx})});
+  const d=await res.json().catch(()=>({}));
+  if(!res.ok)throw new Error(d.error||"Something went wrong. Try again.");
+  if(mode==="grade")renderGrade(d.json||{});else render(d.text||"");
+ }catch(e){fail(e&&e.message?e.message:"Something went wrong. Try again.")}
+ busy=false;$("#go").disabled=false}
+$("#go").onclick=run;
+$("#ex").onclick=()=>{const e=MODES[mode].ex;$("#code").value=e.code;$("#ctx").value=e.ctx};
+
+</script>
+</body>
+</html>
