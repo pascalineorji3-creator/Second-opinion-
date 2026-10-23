@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Second Opinion Pro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#111827;--mut:#5b6472;--bd:#e2e5ea;--ac:#2744b8;--on:#fff;--bad:#b42318;--ok:#067647;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b0f17;--card:#121826;--tx:#e8ecf4;--mut:#9aa4b8;--bd:#232c3d;--ac:#7ea1ff;--on:#0b0f17;--bad:#ff9b92;--ok:#5fd39a}}
+:root[data-theme="dark"]{--bg:#0b0f17;--card:#121826;--tx:#e8ecf4;--mut:#9aa4b8;--bd:#232c3d;--ac:#7ea1ff;--on:#0b0f17;--bad:#ff9b92;--ok:#5fd39a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.6 "Bricolage Grotesque",system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+a{color:inherit}
+.w{max-width:640px;margin:0 auto;padding:0 18px}
+nav{display:flex;justify-content:space-between;align-items:center;padding:18px 0}
+.logo{font-weight:800;text-decoration:none;letter-spacing:-.01em}
+.badge{font:600 11px "JetBrains Mono",monospace;color:var(--ac);border:1px solid var(--ac);border-radius:99px;padding:2px 9px;margin-left:8px}
+nav .back{font-size:14px;color:var(--mut);text-decoration:none}
+h1{font-size:clamp(32px,7vw,48px);line-height:1.02;margin:22px 0 10px;font-weight:800;letter-spacing:-.03em}
+.lead{color:var(--mut);margin:0 0 22px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:20px;margin-bottom:16px}
+.card h2{margin:0 0 10px;font-size:18px}
+ul{margin:0;padding-left:20px;color:var(--mut)}
+label{display:block;font-weight:600;font-size:14px;margin:0 0 12px}
+input{width:100%;margin-top:6px;font:15px "JetBrains Mono",ui-monospace,monospace;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:11px}
+.btn{font:inherit;font-weight:800;border:0;background:var(--ac);color:var(--on);padding:12px 20px;border-radius:10px;cursor:pointer;text-decoration:none;display:inline-block}
+.btn.ghost{background:none;color:var(--ac);border:1px solid var(--bd);font-weight:600}
+.btn:disabled{opacity:.55;cursor:wait}
+:focus-visible{outline:3px solid var(--ac);outline-offset:2px}
+.msg{font-size:14px;color:var(--mut);margin:12px 0 0}
+.msg.err{color:var(--bad);font-weight:600}
+.pill{display:inline-block;font:600 12px "JetBrains Mono",monospace;color:var(--ok);border:1px solid var(--ok);border-radius:99px;padding:2px 10px}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="w">
+ <nav><div><a class="logo" href="/">Second Opinion</a><span class="badge">PRO</span></div><a class="back" href="/">Back to the debugger</a></nav>
+
+ <section id="gate" hidden>
+  <h1>Second Opinion Pro</h1>
+  <p class="lead">Sign in with the license key you received after purchase. Your device is registered when you sign in, and keys are verified on the server, so only a valid license works.</p>
+  <div class="card">
+   <h2>What Pro unlocks</h2>
+   <ul>
+    <li>Write tests: runnable unit tests for your code</li>
+    <li>Project review: multi-file review with cross-file issues and security</li>
+    <li>Up to 40,000 characters per request (free: 12,000)</li>
+    <li>Higher request limits</li>
+   </ul>
+   <div class="row"><a class="btn ghost" href="/#request">Request a license</a></div>
+  </div>
+  <div class="card">
+   <h2>Sign in</h2>
+   <label>License key<input id="key" type="text" autocomplete="off" spellcheck="false" placeholder="Paste your key"></label>
+   <label>Email used for the purchase<input id="email" type="email" autocomplete="email" placeholder="you@example.com"></label>
+   <button class="btn" id="signIn" type="button">Register this device</button>
+   <p class="msg" id="gateMsg"></p>
+  </div>
+ </section>
+
+ <section id="app" hidden>
+  <h1>You are on <span style="color:var(--ac)">Pro</span></h1>
+  <p class="lead"><span class="pill">PRO ACTIVE</span> &nbsp;This device is registered.</p>
+  <div class="card">
+   <h2>Now available</h2>
+   <ul>
+    <li><b>Write tests:</b> pick the Write tests tab in the debugger</li>
+    <li><b>Project review:</b> pick Project review and add several files at once</li>
+    <li>40,000 characters per request and higher limits</li>
+   </ul>
+   <div class="row"><a class="btn" href="/#tool">Open the debugger</a><button class="btn ghost" id="signOut" type="button">Sign out of this device</button></div>
+  </div>
+ </section>
+
+ <p class="msg" id="boot">Checking your license…</p>
+</div>
+<script>
+const API="/.netlify/functions/license",LKEY="so_lic",$=s=>document.querySelector(s);
+const lic=()=>{try{return JSON.parse(localStorage.getItem(LKEY)||"null")}catch(e){return null}};
+const setLic=o=>{try{o?localStorage.setItem(LKEY,JSON.stringify(o)):localStorage.removeItem(LKEY)}catch(e){}};
+async function call(payload){
+ const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+ const d=await r.json().catch(()=>({}));
+ if(!r.ok)throw new Error(d.error||"Something went wrong. Try again.");
+ return d}
+function show(which,msg){
+ $("#boot").hidden=true;$("#gate").hidden=which!=="gate";$("#app").hidden=which!=="app";
+ if(which==="gate"){$("#gateMsg").textContent=msg||"";$("#gateMsg").className="msg"+(msg?" err":"")}}
+async function boot(){
+ const l=lic();
+ if(!l){show("gate");return}
+ try{await call({action:"check",key:l.key,instance:l.instance});show("app")}
+ catch(e){
+  if(e instanceof TypeError){$("#boot").hidden=false;$("#boot").textContent="You seem to be offline. Reconnect and reload this page."}
+  else{setLic(null);show("gate",e.message)}}}
+$("#signIn").onclick=async()=>{
+ const key=$("#key").value.trim(),email=$("#email").value.trim(),m=$("#gateMsg");
+ m.className="msg";
+ if(!key){m.textContent="Enter your license key.";m.className="msg err";return}
+ $("#signIn").disabled=true;m.textContent="Checking your license…";
+ try{
+  const did=Math.random().toString(36).slice(2,6);
+  const d=await call({action:"activate",key,email,device:(/Mobile|Android|iPhone/i.test(navigator.userAgent)?"Phone ":"Computer ")+did});
+  setLic({key,instance:d.instance,email,did});show("app")}
+ catch(e){m.textContent=e instanceof TypeError?"Could not connect. Check your internet and try again.":e.message;m.className="msg err"}
+ $("#signIn").disabled=false};
+$("#signOut").onclick=async()=>{
+ const l=lic();
+ try{if(l)await call({action:"deactivate",key:l.key,instance:l.instance})}catch(e){}
+ setLic(null);location.reload()};
+boot();
+</script>
+</body>
+</html>
