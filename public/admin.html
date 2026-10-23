@@ -22,6 +22,7 @@
   <label>Admin secret<input id="s" type="password" autocomplete="off"></label>
   <label>Buyer email<input id="e" type="email"></label>
   <label>Valid for how many days (0 = never expires)<input id="d" type="number" value="365" min="0"></label>
+  <label style="display:flex;gap:8px;align-items:center;margin-top:14px"><input id="snd" type="checkbox" checked style="width:auto;margin:0"> Email this key to the buyer</label>
   <button id="go">Create key</button>
   <div id="out" hidden></div>
   <p class="m" id="m"></p>
@@ -34,13 +35,13 @@
       const r = await fetch('/.netlify/functions/mintkey', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-admin-secret': document.getElementById('s').value },
-        body: JSON.stringify({ email: document.getElementById('e').value, days: Number(document.getElementById('d').value) })
+        body: JSON.stringify({ email: document.getElementById('e').value, days: Number(document.getElementById('d').value), send: document.getElementById('snd').checked })
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Failed');
       out.hidden = false;
       out.textContent = d.key;
-      m.textContent = 'Key id: ' + d.id + '. To revoke this key later, add that id to the REVOKED_KEYS setting in Netlify and redeploy.';
+      m.textContent = (d.emailed ? 'Key created and emailed to the buyer. ' : (d.emailError ? 'Key created, but the email was not sent: ' + d.emailError + ' ' : '')) + 'Key id: ' + d.id + '. To revoke this key later, add that id to the REVOKED_KEYS setting in Netlify and redeploy.';
     } catch (e){ out.hidden = true; m.textContent = e.message; }
   };
 </script></body></html>
